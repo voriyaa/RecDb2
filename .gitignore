@@ -1,0 +1,21 @@
+# build
+*.o
+*.so
+*.a
+*.d
+*.gcda
+*.gcno
+*.gcov
+
+tmp/
+
+# clang / ide
+compile_commands.json
+.cache/
+
+# editor
+.vscode/
+.idea/
+
+# os
+.DS_Store

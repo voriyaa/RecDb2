@@ -1,0 +1,4 @@
+CREATE FUNCTION recdb2_spi_ping()
+RETURNS TEXT
+AS 'MODULE_PATHNAME', 'recdb2_spi_ping'
+LANGUAGE C STRICT;

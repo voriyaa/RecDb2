@@ -1,0 +1,4 @@
+comment = 'recdb2 extension'
+default_version = '0.1.3'
+relocatable = true
+module_pathname = '$libdir/recdb2'

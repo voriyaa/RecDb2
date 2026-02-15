@@ -1,0 +1,4 @@
+CREATE FUNCTION recdb2_hello()
+RETURNS text
+AS 'MODULE_PATHNAME', 'recdb2_hello'
+LANGUAGE C STRICT;
