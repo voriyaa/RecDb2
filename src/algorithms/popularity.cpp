@@ -69,8 +69,10 @@ std::vector<Prediction> PopularityAlgorithm::Recommend(std::int64_t model_id, st
     std::vector<Prediction> predictions;
     predictions.reserve(result_set.Size());
     for (const auto& row : result_set) {
-        predictions.push_back(
-            Prediction{.item_id = row[0].As<std::int64_t>(), .score = row[1].As<double>()});
+        predictions.push_back(Prediction{
+            .item_id = row[0].As<std::int64_t>(),
+            .score = row[1].As<double>(),
+        });
     }
     return predictions;
 }
