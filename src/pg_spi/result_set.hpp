@@ -7,7 +7,7 @@
 namespace recdb2::pg_spi {
 
 class Field final {
-public:
+   public:
     Field() = default;
 
     explicit Field(std::optional<std::string>&& value);
@@ -17,23 +17,24 @@ public:
 
     template <typename T>
     T As() const;
-private:
+
+   private:
     std::optional<std::string> value_;
 };
 
 class Row final {
-public:
+   public:
     explicit Row(std::vector<Field>&& fields);
 
     std::size_t Size() const;
     const Field& operator[](std::size_t col) const;
 
-private:
+   private:
     std::vector<Field> fields_;
 };
 
 class ResultSet final {
-public:
+   public:
     explicit ResultSet(std::vector<Row>&& rows);
 
     std::size_t Size() const;
@@ -47,8 +48,8 @@ public:
     const Row& SingleRow() const;
     std::optional<Row> OptionalSingleRow() const;
 
-private:
+   private:
     std::vector<Row> rows_;
 };
 
-} // namespace recdb2::pg_spi
+}  // namespace recdb2::pg_spi

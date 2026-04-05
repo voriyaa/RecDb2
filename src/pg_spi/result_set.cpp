@@ -2,15 +2,16 @@
 
 #include <charconv>
 #include <cstdint>
+#include <cstdlib>
 
 extern "C" {
-    #include "postgres.h"
-    #include "utils/elog.h"
+#include "postgres.h"
+#include "utils/elog.h"
 }
 
 namespace recdb2::pg_spi {
 
-Field::Field(std::optional<std::string>&& value): value_(std::move(value)) {}
+Field::Field(std::optional<std::string>&& value) : value_(std::move(value)) {}
 
 bool Field::IsNull() const {
     return !value_.has_value();
@@ -33,8 +34,8 @@ const Field& Row::operator[](std::size_t col) const {
     const auto fields_size = Size();
 
     if (col >= fields_size) {
-        ereport(ERROR, (errmsg("recdb2: column index out of range (col=%lu size=%lu)",
-                                     col, fields_size)));
+        ereport(ERROR,
+                (errmsg("recdb2: column index out of range (col=%lu size=%lu)", col, fields_size)));
     }
     return fields_[col];
 }
@@ -53,10 +54,9 @@ const Row& ResultSet::operator[](std::size_t i) const {
     const auto rows_size = Size();
 
     if (i >= rows_size) {
-        ereport(ERROR, (errmsg("recdb2: row index out of range (row=%lu size=%lu)",
-                                     i, rows_size)));
+        ereport(ERROR, (errmsg("recdb2: row index out of range (row=%lu size=%lu)", i, rows_size)));
     }
-    
+
     return rows_[i];
 }
 
@@ -72,8 +72,7 @@ const Row& ResultSet::SingleRow() const {
     const auto rows_size = Size();
 
     if (rows_size != 1) {
-        ereport(ERROR, (errmsg("recdb2: expected single row, got %lu",
-                                     rows_size)));
+        ereport(ERROR, (errmsg("recdb2: expected single row, got %lu", rows_size)));
     }
 
     return rows_[0];
@@ -87,10 +86,9 @@ std::optional<Row> ResultSet::OptionalSingleRow() const {
     const auto rows_size = Size();
 
     if (rows_size > 1) {
-        ereport(ERROR, (errmsg("recdb2: expected 0 or 1 row, got %lu",
-                                     rows_size)));
+        ereport(ERROR, (errmsg("recdb2: expected 0 or 1 row, got %lu", rows_size)));
     }
-    
+
     return rows_[0];
 }
 
@@ -114,4 +112,15 @@ std::int64_t Field::As<std::int64_t>() const {
     return x;
 }
 
-} // namespace recdb2::pg_spi
+template <>
+double Field::As<double>() const {
+    const auto sv = AsStringView();
+    char* end = nullptr;
+    double val = std::strtod(sv.data(), &end);
+    if (end != sv.data() + sv.size()) {
+        ereport(ERROR, (errmsg("recdb2: failed to parse double")));
+    }
+    return val;
+}
+
+}  // namespace recdb2::pg_spi

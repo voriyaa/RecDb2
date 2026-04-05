@@ -4,32 +4,55 @@
 #include <cstdint>
 
 extern "C" {
-    #include "postgres.h"
-    #include "executor/spi.h"
-    #include "utils/builtins.h"
-    #include "utils/elog.h"
+#include "postgres.h"
+#include "executor/spi.h"
+#include "utils/builtins.h"
+#include "utils/elog.h"
 }
 
 #include "result_set.hpp"
-#include "spi_session.hpp"
 
 namespace recdb2::pg_spi {
 
 namespace {
 
-inline Oid OidOf(const std::string&) { return TEXTOID; }
-inline Oid OidOf(const char*) { return TEXTOID; }
-inline Oid OidOf(const std::int64_t) { return INT8OID; }
+inline Oid OidOf(const std::string&) {
+    return TEXTOID;
+}
+inline Oid OidOf(const char*) {
+    return TEXTOID;
+}
+inline Oid OidOf(const std::int64_t) {
+    return INT8OID;
+}
+inline Oid OidOf(const int) {
+    return INT4OID;
+}
+inline Oid OidOf(const double) {
+    return FLOAT8OID;
+}
 
-inline Datum DatumOf(const std::string& value) { return CStringGetTextDatum(value.c_str()); }
-inline Datum DatumOf(const char* value) { return CStringGetTextDatum(value); }
-inline Datum DatumOf(const std::int64_t value) { return Int64GetDatum(value); }
+inline Datum DatumOf(const std::string& value) {
+    return CStringGetTextDatum(value.c_str());
+}
+inline Datum DatumOf(const char* value) {
+    return CStringGetTextDatum(value);
+}
+inline Datum DatumOf(const std::int64_t value) {
+    return Int64GetDatum(value);
+}
+inline Datum DatumOf(const int value) {
+    return Int32GetDatum(value);
+}
+inline Datum DatumOf(const double value) {
+    return Float8GetDatum(value);
+}
 
 template <typename T>
 struct Param final {
     Oid oid{};
     Datum datum{};
-    char is_null{' '}; // ' ' = not null, 'n' = null for SPI_execute_with_args
+    char is_null{' '};
 };
 
 template <typename T>
@@ -71,7 +94,7 @@ inline ResultSet CopyResultToOwned() {
         std::vector<Field> fields;
         fields.reserve(ncols);
 
-        for(std::size_t col = 1; col <= ncols; ++col) {
+        for (std::size_t col = 1; col <= ncols; ++col) {
             bool is_null = false;
             (void)SPI_getbinval(tuple, desc, static_cast<int>(col), &is_null);
 
@@ -96,37 +119,35 @@ inline ResultSet CopyResultToOwned() {
     return ResultSet{std::move(rows)};
 }
 
-} // namespace
+}  // namespace
 
 template <typename... Args>
 ResultSet Execute(const char* query, const Args&... args) {
-    return SpiSession::Run([&]() -> ResultSet {
-        constexpr int kN = sizeof...(Args);
+    constexpr int kN = sizeof...(Args);
 
-        std::array<Oid, kN> argtypes{};
-        std::array<Datum, kN> values{};
-        std::array<char, kN> nulls{};
+    std::array<Oid, kN> argtypes{};
+    std::array<Datum, kN> values{};
+    std::array<char, kN> nulls{};
 
-        int i = 0;
-        auto push = [&](const auto& a) {
-            auto param = MakeParam(a);
-            argtypes[i] = param.oid;
-            values[i] = param.datum;
-            nulls[i] = param.is_null;
-            ++i;
-        };
+    int i = 0;
+    auto push = [&](const auto& a) {
+        auto param = MakeParam(a);
+        argtypes[i] = param.oid;
+        values[i] = param.datum;
+        nulls[i] = param.is_null;
+        ++i;
+    };
 
-        (push(args), ...);
+    (push(args), ...);
 
-        const int rc = SPI_execute_with_args(
-            query, kN, argtypes.data(), values.data(), nulls.data(), false /*read_only=*/, 0 /*tcount=*/);
+    const int rc =
+        SPI_execute_with_args(query, kN, argtypes.data(), values.data(), nulls.data(), false, 0);
 
-        if (rc < 0) {
-            ereport(ERROR, (errmsg("recdb2: SPI_execute_with_args failed, rc=%d", rc)));
-        }
+    if (rc < 0) {
+        ereport(ERROR, (errmsg("recdb2: SPI_execute_with_args failed, rc=%d", rc)));
+    }
 
-        return CopyResultToOwned();
-    });
+    return CopyResultToOwned();
 }
 
-} // namespace recdb2::pg_spi
+}  // namespace recdb2::pg_spi

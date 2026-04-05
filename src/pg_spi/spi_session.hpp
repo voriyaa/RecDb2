@@ -1,9 +1,9 @@
 #pragma once
 
 extern "C" {
-    #include "postgres.h"
-    #include "executor/spi.h"
-    #include "utils/elog.h"
+#include "postgres.h"
+#include "executor/spi.h"
+#include "utils/elog.h"
 }
 
 namespace recdb2::pg_spi {
@@ -13,11 +13,11 @@ namespace {
 static constexpr auto kSpiConnectFailed = "recdb2: SPI_connect failed";
 static constexpr auto kSpiFinishFailed = "recdb:2 SPI_finish failed";
 
-} // namespace
+}  // namespace
 
 class SpiSession final {
-public:
-    template<typename F>
+   public:
+    template <typename F>
     static void RunVoid(F&& f) {
         if (SPI_connect() != SPI_OK_CONNECT) {
             ereport(ERROR, (errmsg(kSpiConnectFailed)));
@@ -40,7 +40,7 @@ public:
         PG_END_TRY();
     }
 
-    template<typename F>
+    template <typename F>
     static auto Run(F&& f) -> decltype(f()) {
         using R = decltype(f());
 
@@ -71,4 +71,4 @@ public:
     }
 };
 
-} //recdb2::pg_spi
+}  // namespace recdb2::pg_spi
