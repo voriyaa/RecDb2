@@ -38,7 +38,7 @@ std::string BuildRecommendQuery(const std::string& ratings_table, const std::str
         .Build();
 }
 
-}  // namespace
+}
 
 std::vector<std::string> PopularityAlgorithm::RequiredConfigKeys() const {
     return {"ratings_table", "user_col", "item_col", "rating_col"};
@@ -121,4 +121,4 @@ std::vector<ExplanationItem> PopularityAlgorithm::Explain(std::int64_t model_id,
     return out;
 }
 
-}  // namespace recdb2::algorithm
+}

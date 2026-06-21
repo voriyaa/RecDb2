@@ -13,4 +13,4 @@ class ModelsRepository {
                                      const std::string& config_json_text) = 0;
 };
 
-}  // namespace recdb2::storages
+}

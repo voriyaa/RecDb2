@@ -52,4 +52,4 @@ class ResultSet final {
     std::vector<Row> rows_;
 };
 
-}  // namespace recdb2::spi
+}

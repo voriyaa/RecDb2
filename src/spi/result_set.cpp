@@ -132,4 +132,4 @@ bool Field::As<bool>() const {
     __builtin_unreachable();
 }
 
-}  // namespace recdb2::spi
+}

@@ -46,4 +46,4 @@ class Algorithm {
     virtual ~Algorithm() = default;
 };
 
-}  // namespace recdb2::algorithm
+}

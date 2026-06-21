@@ -27,7 +27,7 @@ LearnedFnnState TrainFnnNas(const FnnConfig& cfg, const std::vector<AtomDef>& at
                              const LearnedFnnState* prev_state) {
     const int n_atoms = static_cast<int>(atoms.size());
     const int n_rules = cfg.training.n_rules;
-    const int n_slots = std::min(cfg.training.n_slots, n_atoms);  // не больше чем атомов
+    const int n_slots = std::min(cfg.training.n_slots, n_atoms);
     const std::size_t n_params =
         static_cast<std::size_t>(n_rules) * n_slots * n_atoms;
 
@@ -85,8 +85,6 @@ LearnedFnnState TrainFnnNas(const FnnConfig& cfg, const std::vector<AtomDef>& at
     std::vector<double> best_logits = logits;
     std::vector<double> best_mu = gaussian_mu;
     std::vector<double> best_sigma = gaussian_sigma;
-    // Warm-start: НЕ разрушаем уже дискретные правила высокой tau. Стартуем низко
-    // (чуть выше tau_end) и плавно полируем. Cold-start: полный tau_start → tau_end.
     const double effective_tau_start = warm_start
         ? std::max(cfg.training.tau_end * 2.0, 0.2)
         : cfg.training.tau_start;
@@ -96,7 +94,7 @@ LearnedFnnState TrainFnnNas(const FnnConfig& cfg, const std::vector<AtomDef>& at
                                   effective_tau_start, cfg.training.tau_end)));
     }
 
-    double sgd_seconds = 0.0;  // только SGD-фаза (без поэпошной валидации) — для сравнения с parallel
+    double sgd_seconds = 0.0;
     for (int epoch = 0; epoch < epochs; ++epoch) {
         const auto sgd_t0 = std::chrono::steady_clock::now();
         std::shuffle(indices.begin(), indices.end(), rng);
@@ -202,7 +200,6 @@ LearnedFnnState TrainFnnNas(const FnnConfig& cfg, const std::vector<AtomDef>& at
 
     if (!test_samples.empty()) {
         state.metrics.final_val_loss = best_val_loss;
-        // Final eval с tau_end (≈ hard discrete rules)
         auto scored = ScoreSamplesNas(test_samples, state.weights,
                                         state.gaussian_mu, state.gaussian_sigma, membership,
                                         n_rules, n_slots, n_atoms, cfg.training.tau_end);
@@ -219,7 +216,7 @@ LearnedFnnState TrainFnnNas(const FnnConfig& cfg, const std::vector<AtomDef>& at
     return state;
 }
 
-}  // namespace
+}
 
 void SplitTrainTest(std::vector<TrainingSample>& all, double test_split, long seed,
                     std::vector<TrainingSample>* train_out,
@@ -254,4 +251,4 @@ LearnedFnnState TrainFnn(const FnnConfig& cfg, const std::vector<AtomDef>& atoms
     return TrainFnnNas(cfg, atoms, train_samples, test_samples, prev_state);
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

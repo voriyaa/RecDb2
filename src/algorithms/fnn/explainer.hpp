@@ -14,4 +14,4 @@ std::vector<ExplanationItem> ExplainPrediction(const LearnedFnnState& state,
 
 std::vector<ExplanationItem> IntrospectModel(const LearnedFnnState& state);
 
-}  // namespace recdb2::algorithm::fnn
+}

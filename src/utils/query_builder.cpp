@@ -64,4 +64,4 @@ std::string QueryBuilder::Build() const {
     return buffer_;
 }
 
-}  // namespace recdb2::utils
+}

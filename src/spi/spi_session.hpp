@@ -13,7 +13,7 @@ namespace {
 static constexpr auto kSpiConnectFailed = "recdb2: SPI_connect failed";
 static constexpr auto kSpiFinishFailed = "recdb:2 SPI_finish failed";
 
-}  // namespace
+}
 
 class SpiSession final {
    public:
@@ -71,4 +71,4 @@ class SpiSession final {
     }
 };
 
-}  // namespace recdb2::spi
+}

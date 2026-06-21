@@ -68,11 +68,11 @@ std::string AtomLabel(const AtomDef& a) {
     return label;
 }
 
-}  // namespace
+}
 
 std::vector<ExplanationItem> ExplainPrediction(const LearnedFnnState& state,
                                                 const InferenceItem& sample,
-                                                std::int64_t /*user_id*/) {
+                                                std::int64_t) {
     std::vector<ExplanationItem> out;
 
     NasForwardCache cache;
@@ -83,7 +83,7 @@ std::vector<ExplanationItem> ExplainPrediction(const LearnedFnnState& state,
     }
     const double y = ForwardPassNas(state.weights, state.gaussian_mu, state.gaussian_sigma,
                                     membership, state.n_rules, state.n_slots,
-                                    state.n_atoms, sample.atoms, /*tau=*/0.1, &cache);
+                                    state.n_atoms, sample.atoms, 0.1, &cache);
     out.push_back(ExplanationItem{
         .kind = "prediction",
         .label = "fnn_score",
@@ -240,4 +240,4 @@ std::vector<ExplanationItem> IntrospectModel(const LearnedFnnState& state) {
     return out;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

@@ -23,4 +23,4 @@ inline std::unique_ptr<Algorithm> CreateAlgorithm(const std::string& name) {
     __builtin_unreachable();
 }
 
-}  // namespace recdb2::algorithm
+}

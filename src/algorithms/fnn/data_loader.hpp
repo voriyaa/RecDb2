@@ -48,4 +48,4 @@ std::optional<InferenceItem> LoadSingleInferenceItem(const FnnConfig& cfg,
                                                      std::int64_t user_id,
                                                      std::int64_t item_id);
 
-}  // namespace recdb2::algorithm::fnn
+}

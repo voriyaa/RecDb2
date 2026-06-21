@@ -18,4 +18,4 @@ void SplitTrainTest(std::vector<TrainingSample>& all, double test_split, long se
                     std::vector<TrainingSample>* train_out,
                     std::vector<TrainingSample>* test_out);
 
-}  // namespace recdb2::algorithm::fnn
+}

@@ -23,4 +23,4 @@ class QueryBuilder final {
     std::string buffer_;
 };
 
-}  // namespace recdb2::utils
+}

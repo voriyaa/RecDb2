@@ -38,7 +38,7 @@ void SetModelState(std::int64_t id, const std::string& state,
     recdb2::spi::Execute(recdb2::sql::kUpdateModelState, id, state, error);
 }
 
-}  // namespace
+}
 
 std::string RecommenderService::Hello() const {
     return "recdb2: hello";
@@ -148,4 +148,4 @@ std::string RecommenderService::Drop(const std::string& name) const {
     return "recdb2: model '" + name + "' dropped";
 }
 
-}  // namespace recdb2::core
+}

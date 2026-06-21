@@ -18,7 +18,6 @@ struct Quartiles {
 };
 
 Quartiles ColumnQuartiles(const std::string& table, const std::string& column) {
-    // Используем только реальные числовые типы (boolean уходит в другой scan).
     const std::string sql =
         "SELECT percentile_cont(0.33) WITHIN GROUP (ORDER BY (" + column +
         ")::double precision), "
@@ -30,13 +29,12 @@ Quartiles ColumnQuartiles(const std::string& table, const std::string& column) {
     if (rs.IsEmpty() || rs[0][0].IsNull() || rs[0][1].IsNull()) return q;
     q.p33 = rs[0][0].As<double>();
     q.p66 = rs[0][1].As<double>();
-    if (q.p33 == q.p66) return q;  // вырожденная колонка
+    if (q.p33 == q.p66) return q;
     q.valid = true;
     return q;
 }
 
 std::pair<double, double> GetColumnRange(const std::string& table, const std::string& column) {
-    // Сначала достаём массив значений, кастуя через text — чтобы работало и для boolean.
     const std::string expr = "COALESCE(CASE WHEN (" + column +
                              ")::text = 'true' THEN 1.0 WHEN (" + column +
                              ")::text = 'false' THEN 0.0 END, NULLIF((" + column +
@@ -100,8 +98,6 @@ std::vector<std::string> ScanCategoricalColumns(const std::string& table,
         "ORDER BY a.attnum";
     auto rs = spi::Execute(kQuery, table);
     const std::int64_t rows = TableRowCount(table);
-    // Identifier-like text колонки (title, name, isbn, url) скипаем — их
-    // top-K даёт уникальные значения = мусор. Эвристика: cardinality > 30% rows.
     const std::int64_t max_card =
         std::max<std::int64_t>(50, rows / 3);
     std::vector<std::string> out;
@@ -170,7 +166,6 @@ std::vector<std::string> ScanRealNumericColumns(const std::string& table,
 }
 
 std::vector<AtomConfig> GenerateDefaultAtomConfigs(const FnnConfig& cfg) {
-    // Только content-based атомы (без ratings-percentile — это popularity-in-disguise).
     std::vector<AtomConfig> out;
     const std::string& rating = cfg.interactions.rating_col;
     constexpr int kCategoricalTopK = 5;
@@ -210,7 +205,6 @@ std::vector<AtomConfig> GenerateDefaultAtomConfigs(const FnnConfig& cfg) {
         }
     }
 
-    // Per-user content preference: атом user_likes_<col> на каждую item-bool колонку.
     if (cfg.items.has_value()) {
         auto bool_cols = ScanBooleanColumns(cfg.items->table, cfg.items->id_col);
         ereport(NOTICE, (errmsg("recdb2/fnn: per-user prefs (boolean) — %zu колонок",
@@ -222,7 +216,7 @@ std::vector<AtomConfig> GenerateDefaultAtomConfigs(const FnnConfig& cfg) {
             a.aggregate_fn = "avg";
             a.column = rating;
             a.threshold_spec = "p50";
-            a.filter_item_column = bc;  // backward compat: пустой value = boolean = true
+            a.filter_item_column = bc;
             out.push_back(std::move(a));
         }
     }
@@ -305,7 +299,6 @@ double ResolveAggregatePercentile(const FnnConfig& cfg, const AtomConfig& a) {
     if (!a.filter_item_column.empty() && cfg.items.has_value()) {
         from_clause += " JOIN " + cfg.items->table + " m ON m." + cfg.items->id_col +
                         " = r." + item_col;
-        // пустой value → boolean=true; '=' → строковое равенство; иначе числовой оператор
         if (a.filter_item_value.empty()) {
             where_clause = " WHERE (m." + a.filter_item_column + ")::text = 'true'";
         } else if (a.filter_item_op.empty() || a.filter_item_op == "=") {
@@ -358,7 +351,6 @@ double ResolveColumnPercentile(const FnnConfig& cfg, const AtomConfig& a) {
         default:
             ereport(ERROR, (errmsg("recdb2/fnn: invalid kind for column percentile")));
     }
-    // Унифицированный numeric expression — корректно обрабатывает boolean колонки.
     const std::string num_expr = "COALESCE(CASE WHEN (" + a.column +
                                   ")::text = 'true' THEN 1.0 WHEN (" + a.column +
                                   ")::text = 'false' THEN 0.0 END, NULLIF((" + a.column +
@@ -394,7 +386,7 @@ double ResolveThreshold(const FnnConfig& cfg, const AtomConfig& a) {
     }
 }
 
-}  // namespace
+}
 
 std::vector<AtomDef> BuildResolvedAtoms(const FnnConfig& cfg) {
     std::vector<AtomConfig> input = cfg.atoms;
@@ -417,15 +409,12 @@ std::vector<AtomDef> BuildResolvedAtoms(const FnnConfig& cfg) {
         def.filter_item_value = a.filter_item_value;
         def.filter_item_op = a.filter_item_op;
         def.membership = a.gaussian ? MembershipKind::Gaussian : MembershipKind::Binary;
-        // Categorical атом: threshold/scale не используются, ветка в data_loader сразу
-        // переходит на сравнение col = 'value'.
         if (!a.categorical_value.empty()) {
             def.threshold = 0.0;
             def.scale = 0.0;
             out.push_back(std::move(def));
             continue;
         }
-        // Continuous: scale>0 => data_loader нормализует (col - min) / scale.
         if (a.threshold_spec == "continuous") {
             std::pair<double, double> range;
             switch (a.kind) {
@@ -489,4 +478,4 @@ std::string AtomSqlExpression(const AtomDef& a, const std::string& items_alias,
     return "(CASE WHEN " + value + " >= " + buf + " THEN 1.0 ELSE 0.0 END)";
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

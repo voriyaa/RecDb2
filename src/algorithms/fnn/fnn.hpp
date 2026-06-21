@@ -24,4 +24,4 @@ class FnnAlgorithm final : public Algorithm {
                  const std::string& config_json) override;
 };
 
-}  // namespace recdb2::algorithm::fnn
+}

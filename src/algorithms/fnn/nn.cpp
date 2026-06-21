@@ -38,7 +38,6 @@ void AdamOptimizer::Step(std::vector<double>& weights, const std::vector<double>
 namespace {
 
 void SoftmaxRow(const double* logits, std::size_t n, double tau, double* probs_out) {
-    // numerically stable softmax с температурой
     double max_lv = logits[0] / tau;
     for (std::size_t j = 1; j < n; ++j) {
         const double lv = logits[j] / tau;
@@ -54,17 +53,17 @@ void SoftmaxRow(const double* logits, std::size_t n, double tau, double* probs_o
     for (std::size_t j = 0; j < n; ++j) probs_out[j] *= inv;
 }
 
-}  // namespace
+}
 
 namespace {
 
 double GaussianMembership(double x, double mu, double sigma) {
-    const double s = std::max(0.05, std::fabs(sigma));  // floor для устойчивости
+    const double s = std::max(0.05, std::fabs(sigma));
     const double z = (x - mu) / s;
     return std::exp(-0.5 * z * z);
 }
 
-}  // namespace
+}
 
 double ForwardPassNas(const std::vector<double>& logits,
                       const std::vector<double>& gaussian_mu,
@@ -77,18 +76,16 @@ double ForwardPassNas(const std::vector<double>& logits,
     const std::size_t nr = static_cast<std::size_t>(n_rules);
     const std::size_t ns = static_cast<std::size_t>(n_slots);
 
-    // Шаг 1: membership — Gaussian-атомы через exp(-(x-μ)²/2σ²), остальные pass-through.
     std::vector<double> atom_values(na, 0.0);
     for (std::size_t j = 0; j < na; ++j) {
         if (j < membership.size() && membership[j].kind == 1 &&
             j < gaussian_mu.size() && j < gaussian_sigma.size()) {
             atom_values[j] = GaussianMembership(atoms_raw[j], gaussian_mu[j], gaussian_sigma[j]);
         } else {
-            atom_values[j] = atoms_raw[j];  // pass-through
+            atom_values[j] = atoms_raw[j];
         }
     }
 
-    // Шаг 2: softmax по атомам в каждом слоте (температура τ).
     const std::size_t n_p = nr * ns * na;
     std::vector<double> probs(n_p, 0.0);
     std::vector<double> slot_values(nr * ns, 0.0);
@@ -103,7 +100,6 @@ double ForwardPassNas(const std::vector<double>& logits,
         }
     }
 
-    // Шаг 3: product t-norm по слотам.
     std::vector<double> rule_values(nr, 0.0);
     for (int i = 0; i < n_rules; ++i) {
         const std::size_t slot_base = static_cast<std::size_t>(i) * ns;
@@ -112,7 +108,6 @@ double ForwardPassNas(const std::vector<double>& logits,
         rule_values[i] = prod;
     }
 
-    // Шаг 4: probabilistic OR.
     std::vector<double> one_minus_rule(nr);
     double prod_inv = 1.0;
     for (int i = 0; i < n_rules; ++i) {
@@ -177,7 +172,6 @@ void BackwardPassNas(const NasForwardCache& cache,
             const std::size_t slot_idx = slot_base + k;
             const double v = cache.slot_values[slot_idx];
 
-            // dR_i/dv_k = R_i / v_k (product t-norm)
             double dRi_dv;
             if (v > kSafe) {
                 dRi_dv = Ri / v;
@@ -200,7 +194,6 @@ void BackwardPassNas(const NasForwardCache& cache,
         }
     }
 
-    // Backward через Gaussian membership для каждого numeric атома
     for (int j = 0; j < n_atoms; ++j) {
         if (static_cast<std::size_t>(j) >= membership.size() || membership[j].kind != 1) continue;
         if (static_cast<std::size_t>(j) >= gaussian_mu.size() ||
@@ -231,21 +224,17 @@ void InitializeLogitsNas(std::vector<double>& logits, int n_rules, int n_slots, 
 void AddDiversityGradient(const NasForwardCache& cache, int n_rules, int n_slots, int n_atoms,
                            double lambda_div, double tau,
                            std::vector<double>* logit_grad) {
-    // Глобальный анти-коллапс: штраф за пары слотов (в любых правилах), выбирающие
-    // одни и те же атомы. Loss = λ · Σ_{(i1,k1)<(i2,k2)} <p_{i1,k1}, p_{i2,k2}>.
     if (lambda_div <= 0.0 || n_rules * n_slots <= 1) return;
     const std::size_t na = static_cast<std::size_t>(n_atoms);
     const std::size_t total_slots =
         static_cast<std::size_t>(n_rules) * static_cast<std::size_t>(n_slots);
 
-    // Один проход — сумма softmax по ВСЕМ слотам (всех правил).
     std::vector<double> total(na, 0.0);
     for (std::size_t s = 0; s < total_slots; ++s) {
         const std::size_t base = s * na;
         for (std::size_t j = 0; j < na; ++j) total[j] += cache.probs[base + j];
     }
 
-    // Per-slot: градиент против "среднего фона" остальных слотов модели.
     for (std::size_t s = 0; s < total_slots; ++s) {
         const std::size_t base = s * na;
         double dot = 0.0;
@@ -261,4 +250,4 @@ void AddDiversityGradient(const NasForwardCache& cache, int n_rules, int n_slots
     }
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

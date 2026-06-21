@@ -1,7 +1,3 @@
-// FnnAlgorithm — реализация интерфейса Algorithm для нечёткой нейросети
-// (Bartl et al. 2025). Здесь только оркестровка SPI-вызовов и
-// process-локальный кеш состояния. Вся математика — в nn.cpp / trainer.cpp.
-
 #include "fnn.hpp"
 
 #include "atom_builder.hpp"
@@ -37,8 +33,6 @@ std::string UserStatsViewName(std::int64_t model_id) {
     return "recdb2_fnn_" + std::to_string(model_id) + "_user_atoms";
 }
 
-// Per-backend cache. JSONB-десериализация модели стоит ~200 мс на ML-1M;
-// без кеша recdb2_score становится непригодным для batch-запросов.
 struct CachedState {
     std::shared_ptr<LearnedFnnState> state;
     std::string updated_at;
@@ -80,7 +74,7 @@ std::shared_ptr<LearnedFnnState> LoadOrFail(std::int64_t model_id) {
     return state;
 }
 
-}  // namespace
+}
 
 std::vector<std::string> FnnAlgorithm::RequiredConfigKeys() const { return {}; }
 
@@ -162,11 +156,10 @@ std::vector<AtomMembership> MembershipFor(const LearnedFnnState& state) {
 double ScoreOne(const LearnedFnnState& state, const std::vector<double>& atoms) {
     NasForwardCache c;
     const auto membership = MembershipFor(state);
-    // Inference: tau близок к 0 → ~hard discrete rules.
     return ForwardPassNas(state.weights, state.gaussian_mu, state.gaussian_sigma, membership,
                           state.n_rules, state.n_slots, state.n_atoms, atoms, 0.1, &c);
 }
-}  // namespace
+}
 
 std::vector<Prediction> FnnAlgorithm::Recommend(std::int64_t model_id, std::int64_t user_id,
                                                   int top_n, const std::string& config_json) {
@@ -176,7 +169,7 @@ std::vector<Prediction> FnnAlgorithm::Recommend(std::int64_t model_id, std::int6
 
     auto inference =
         LoadInferenceItems(cfg, state.atoms, ItemStatsViewName(model_id),
-                            UserStatsViewName(model_id), user_id, /*exclude_rated=*/true);
+                            UserStatsViewName(model_id), user_id, true);
 
     std::vector<Prediction> scored;
     scored.reserve(inference.size());
@@ -221,11 +214,11 @@ double FnnAlgorithm::Score(std::int64_t model_id, std::int64_t user_id, std::int
     return ScoreOne(state, sample->atoms);
 }
 
-std::vector<ExplanationItem> FnnAlgorithm::Introspect(std::int64_t /*model_id*/,
-                                                       const std::string& /*config_json*/,
+std::vector<ExplanationItem> FnnAlgorithm::Introspect(std::int64_t ,
+                                                       const std::string& ,
                                                        const std::string& learned_state_json) {
     const auto state = DeserializeFnnState(learned_state_json);
     return IntrospectModel(state);
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

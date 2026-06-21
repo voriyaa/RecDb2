@@ -28,4 +28,4 @@ TopKMetrics ComputeTopKMetrics(const std::vector<UserItemScore>& predictions, in
 void FillEvaluationMetrics(const std::vector<UserItemScore>& test_predictions,
                             TrainingMetrics* out);
 
-}  // namespace recdb2::algorithm::fnn
+}

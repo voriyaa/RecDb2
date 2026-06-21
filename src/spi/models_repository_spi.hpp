@@ -10,4 +10,4 @@ class ModelsRepositorySpi final : public recdb2::storages::ModelsRepository {
                              const std::string& config_json_text) override;
 };
 
-}  // namespace recdb2::spi
+}

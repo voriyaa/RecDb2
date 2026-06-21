@@ -175,7 +175,7 @@ void ParseTraining(FnnConfig& cfg, const std::string& config_json) {
     }
 }
 
-}  // namespace
+}
 
 FnnConfig ParseFnnConfig(const std::string& config_json) {
     FnnConfig cfg;
@@ -193,4 +193,4 @@ FnnConfig ParseFnnConfig(const std::string& config_json) {
     return cfg;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

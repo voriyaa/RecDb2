@@ -119,7 +119,7 @@ inline ResultSet CopyResultToOwned() {
     return ResultSet{std::move(rows)};
 }
 
-}  // namespace
+}
 
 template <typename... Args>
 ResultSet Execute(const char* query, const Args&... args) {
@@ -150,4 +150,4 @@ ResultSet Execute(const char* query, const Args&... args) {
     return CopyResultToOwned();
 }
 
-}  // namespace recdb2::spi
+}

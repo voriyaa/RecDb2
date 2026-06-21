@@ -9,11 +9,6 @@
 
 namespace recdb2::algorithm::fnn {
 
-// Примитивы NAS-fuzzy обучения, общие для серийного (trainer.cpp) и
-// параллельного (parallel_trainer.cpp) путей: расписания lr/τ, конвертер
-// membership и оценка на отложенной выборке. Вынесены сюда, чтобы адаптер под
-// движок parallel_sgd оставался тонким и не дублировал серийный тренер.
-
 std::vector<AtomMembership> MakeMembership(const std::vector<AtomDef>& atoms);
 
 double LrSchedule(int epoch, int total_epochs);
@@ -32,4 +27,4 @@ std::vector<UserItemScore> ScoreSamplesNas(const std::vector<TrainingSample>& sa
                                            const std::vector<AtomMembership>& membership,
                                            int n_rules, int n_slots, int n_atoms, double tau);
 
-}  // namespace recdb2::algorithm::fnn
+}

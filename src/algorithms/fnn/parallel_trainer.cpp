@@ -23,11 +23,8 @@ namespace recdb2::algorithm::fnn {
 
 namespace {
 
-// id FNN в реестре движка parallel_sgd (popularity — агрегат, не SGD — туда не входит).
 constexpr int kAlgoFnn = 1;
 
-// Hyper-блоб FNN: лидер кладёт в DSM как непрозрачные байты, за POD-структурой следуют
-// n_atoms байт membership. n_params движка = n_logits + 2*n_gauss (раскладка ниже).
 struct FnnHyper {
     std::int32_t n_atoms;
     std::int32_t n_rules;
@@ -44,9 +41,6 @@ struct FnnHyper {
     double lr_scale_extra;
 };
 
-// Адаптер FNN под интерфейс движка. Плоский вектор параметров:
-//   [0, n_logits) = logits; [n_logits, +n_gauss) = mu; [+n_gauss, +2*n_gauss) = sigma.
-// Моменты Adam живут в полях класса и переживают эпохи — ImportParams их НЕ трогает.
 class FnnSgdModel : public recdb2::parallel::ParallelSgdModel {
    public:
     FnnSgdModel(const FnnHyper& hp, std::vector<AtomMembership> membership)
@@ -178,13 +172,12 @@ std::unique_ptr<recdb2::parallel::ParallelSgdModel> MakeFnnSgdModel(
     return std::make_unique<FnnSgdModel>(*hp, std::move(membership));
 }
 
-// Регистрирует фабрику FNN при загрузке recdb2.dylib (в т.ч. в каждом воркере).
 struct FnnRegistrar {
     FnnRegistrar() { recdb2::parallel::RegisterParallelSgdModel(kAlgoFnn, &MakeFnnSgdModel); }
 };
 const FnnRegistrar g_fnn_registrar;
 
-}  // namespace
+}
 
 LearnedFnnState TrainFnnParallel(const FnnConfig& cfg, const std::vector<AtomDef>& atoms,
                                  const std::vector<TrainingSample>& train_samples,
@@ -224,7 +217,6 @@ LearnedFnnState TrainFnnParallel(const FnnConfig& cfg, const std::vector<AtomDef
     const double effective_tau_start =
         warm_start ? std::max(cfg.training.tau_end * 2.0, 0.2) : cfg.training.tau_start;
 
-    // Плоские read-only данные для DSM (atoms как float — вдвое меньше шина/память).
     std::vector<float> features(static_cast<std::size_t>(n_samples) * n_atoms);
     for (int i = 0; i < n_samples; ++i) {
         const auto& a = train_samples[i].atoms;
@@ -314,4 +306,4 @@ LearnedFnnState TrainFnnParallel(const FnnConfig& cfg, const std::vector<AtomDef
     return state;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

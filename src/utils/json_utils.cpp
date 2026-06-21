@@ -25,4 +25,4 @@ std::string JsonGet(const std::string& json_text, const char* key) {
     return result.value();
 }
 
-}  // namespace recdb2::utils
+}

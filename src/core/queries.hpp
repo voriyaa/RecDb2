@@ -49,4 +49,4 @@ inline constexpr const char* kSelectPredictionRank =
     "FROM recdb2_predictions p "
     "WHERE p.model_id = $1 AND p.item_id = $2 ";
 
-}  // namespace recdb2::sql
+}

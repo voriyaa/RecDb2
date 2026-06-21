@@ -27,14 +27,13 @@ extern "C" {
 
 namespace {
 
-// toc-ключи сегмента.
 constexpr uint64 kKeyHeader = 1;
-constexpr uint64 kKeyFeatures = 2;  // float[n_samples * n_features] — read-only
-constexpr uint64 kKeyTargets = 3;   // double[n_samples] — read-only
-constexpr uint64 kKeyHyper = 4;     // непрозрачный алгоритм-специфичный блоб
-constexpr uint64 kKeyInit = 5;      // double[n_params] — стартовые параметры
-constexpr uint64 kKeyGlobal = 6;    // double[n_params] — усреднённая модель
-constexpr uint64 kKeySlots = 7;     // double[n_params * n_workers] — выходы воркеров
+constexpr uint64 kKeyFeatures = 2;
+constexpr uint64 kKeyTargets = 3;
+constexpr uint64 kKeyHyper = 4;
+constexpr uint64 kKeyInit = 5;
+constexpr uint64 kKeyGlobal = 6;
+constexpr uint64 kKeySlots = 7;
 
 struct ParallelSgdHeader {
     std::int32_t n_samples;
@@ -42,15 +41,14 @@ struct ParallelSgdHeader {
     std::int32_t n_params;
     std::int32_t epochs;
     std::int32_t batch_size;
-    std::int32_t n_launched;  // выставляет лидер ПОСЛЕ запуска воркеров
+    std::int32_t n_launched;
     std::int32_t algo_id;
     std::int32_t hyper_len;
     std::int64_t random_seed;
-    pg_atomic_uint32 ready;  // 0 → воркеры ждут; 1 → n_launched/barrier готовы
+    pg_atomic_uint32 ready;
     Barrier barrier;
 };
 
-// Реестр фабрик (Meyers-singleton: безопасный порядок статической инициализации между TU).
 std::unordered_map<int, recdb2::parallel::ModelFactory>& Registry() {
     static std::unordered_map<int, recdb2::parallel::ModelFactory> registry;
     return registry;
@@ -65,7 +63,7 @@ std::unique_ptr<recdb2::parallel::ParallelSgdModel> MakeModel(
     return it->second(dims, hyper, hyper_len);
 }
 
-}  // namespace
+}
 
 namespace recdb2::parallel {
 
@@ -73,10 +71,8 @@ void RegisterParallelSgdModel(int algo_id, ModelFactory factory) {
     Registry()[algo_id] = factory;
 }
 
-}  // namespace recdb2::parallel
+}
 
-// Воркер: отдельный процесс, уже подключённый framework'ом к БД (снимок лидера, GUC,
-// загруженная recdb2.dylib -> реестр фабрик заполнен). Без SPI/ereport в горячем цикле.
 extern "C" PGDLLEXPORT void recdb2_parallel_sgd_worker(dsm_segment* seg, shm_toc* toc) {
     using namespace recdb2::parallel;
     (void)seg;
@@ -89,7 +85,6 @@ extern "C" PGDLLEXPORT void recdb2_parallel_sgd_worker(dsm_segment* seg, shm_toc
         auto* global = static_cast<double*>(shm_toc_lookup(toc, kKeyGlobal, false));
         auto* slots = static_cast<double*>(shm_toc_lookup(toc, kKeySlots, false));
 
-        // Хендшейк: ждём, пока лидер опубликует n_launched и проинициализирует Barrier.
         while (pg_atomic_read_u32(&h->ready) == 0) {
             CHECK_FOR_INTERRUPTS();
             pg_usleep(500L);
@@ -123,7 +118,6 @@ extern "C" PGDLLEXPORT void recdb2_parallel_sgd_worker(dsm_segment* seg, shm_toc
         }
         model->ImportParams(init);
 
-        // Шард [lo, hi): лидер уже глобально перемешал выборку, contiguous-срез i.i.d.
         const std::int64_t S = h->n_samples;
         const int lo = static_cast<int>(S * widx / n);
         const int hi = static_cast<int>(S * (widx + 1) / n);
@@ -141,7 +135,6 @@ extern "C" PGDLLEXPORT void recdb2_parallel_sgd_worker(dsm_segment* seg, shm_toc
 
             model->ExportParams(my_slot);
 
-            // Barrier A: все слоты записаны; усредняет только воркер 0 (остальные ждут B).
             BarrierArriveAndWait(&h->barrier, PG_WAIT_EXTENSION);
             if (widx == 0) {
                 for (int c = 0; c < n_params; ++c) {
@@ -154,7 +147,6 @@ extern "C" PGDLLEXPORT void recdb2_parallel_sgd_worker(dsm_segment* seg, shm_toc
             }
             BarrierArriveAndWait(&h->barrier, PG_WAIT_EXTENSION);
 
-            // Следующая эпоха — из усреднённой модели (моменты Adam в модели сохранены).
             model->ImportParams(global);
         }
     } catch (const std::exception& e) {
@@ -189,8 +181,8 @@ std::vector<double> RunDataParallelSgd(const ParallelSgdSpec& spec, double* out_
     shm_toc_estimate_chunk(&pcxt->estimator, features_bytes);
     shm_toc_estimate_chunk(&pcxt->estimator, targets_bytes);
     shm_toc_estimate_chunk(&pcxt->estimator, hyper_bytes);
-    shm_toc_estimate_chunk(&pcxt->estimator, params_bytes);  // init
-    shm_toc_estimate_chunk(&pcxt->estimator, params_bytes);  // global
+    shm_toc_estimate_chunk(&pcxt->estimator, params_bytes);
+    shm_toc_estimate_chunk(&pcxt->estimator, params_bytes);
     shm_toc_estimate_chunk(&pcxt->estimator, slots_bytes);
     shm_toc_estimate_keys(&pcxt->estimator, 7);
 
@@ -272,4 +264,4 @@ std::vector<double> RunDataParallelSgd(const ParallelSgdSpec& spec, double* out_
     return result;
 }
 
-}  // namespace recdb2::parallel
+}

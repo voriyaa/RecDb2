@@ -30,4 +30,4 @@ class RecommenderService final {
     std::string Drop(const std::string& name) const;
 };
 
-}  // namespace recdb2::core
+}

@@ -15,7 +15,6 @@ namespace recdb2::algorithm::fnn {
 namespace {
 
 std::string SanitizeForColumn(const std::string& s) {
-    // Postgres column names: только [a-zA-Z0-9_]. Заменяем остальное на _.
     std::string out;
     out.reserve(s.size());
     for (char c : s) {
@@ -85,20 +84,17 @@ std::string BuildItemFilterPredicate(const std::string& alias,
                                        const std::string& column,
                                        const std::string& value,
                                        const std::string& op) {
-    // пустой value → boolean true
     if (value.empty()) {
         return "(" + alias + "." + column + ")::text = 'true'";
     }
     const std::string actual_op = op.empty() ? "=" : op;
     if (actual_op == "=") {
-        return alias + "." + column + " = " + SqlEscapeLiteral(value);  // экранируем литерал
+        return alias + "." + column + " = " + SqlEscapeLiteral(value);
     }
-    // value сюда пишет только наш генератор (число) — splice безопасен.
     return "(" + alias + "." + column + ")::double precision " + actual_op + " " + value;
 }
 
 std::set<std::string> CollectColumnKeys(const std::vector<AtomDef>& atoms, AtomKind kind) {
-    // Numeric column atoms (continuous, threshold) — кастуются в double precision в stats view.
     std::set<std::string> keys;
     for (const auto& a : atoms) {
         if (a.kind == kind && a.categorical_value.empty()) keys.insert(a.column);
@@ -108,7 +104,6 @@ std::set<std::string> CollectColumnKeys(const std::vector<AtomDef>& atoms, AtomK
 
 std::set<std::string> CollectCategoricalKeys(const std::vector<AtomDef>& atoms,
                                                AtomKind kind) {
-    // Categorical column atoms — переносятся в stats view как text без cast.
     std::set<std::string> keys;
     for (const auto& a : atoms) {
         if (a.kind == kind && !a.categorical_value.empty()) keys.insert(a.column);
@@ -130,7 +125,6 @@ std::string SqlEscapeLiteral(const std::string& s) {
 
 std::string AtomValueExpression(const AtomDef& a, const std::string& items_alias,
                                   const std::string& users_alias) {
-    // Categorical атом: проверка col = 'value'. Не требует numeric.
     if (!a.categorical_value.empty()) {
         std::string raw_col;
         switch (a.kind) {
@@ -164,14 +158,12 @@ std::string AtomValueExpression(const AtomDef& a, const std::string& items_alias
             value = users_alias + "." + a.column + "::double precision";
             break;
     }
-    // Continuous: scale>0 => нормализуем в [0,1] по min/max; NULL → 0.5 (нейтрально).
     if (a.scale > 0.0) {
         const std::string min_v = FormatNum(a.threshold);
         const std::string scale_v = FormatNum(a.scale);
         return "COALESCE(GREATEST(0.0, LEAST(1.0, (" + value + " - " + min_v + ") / " +
                 scale_v + ")), 0.5)";
     }
-    // Threshold-based: NULL → 0 (например user_likes_X без оценок X) — «признак не подтверждён».
     const std::string cmp = a.negate ? " < " : " >= ";
     return "COALESCE(CASE WHEN " + value + cmp + FormatNum(a.threshold) +
             " THEN 1.0 ELSE 0.0 END, 0.0)";
@@ -301,7 +293,7 @@ std::string BuildUserStatsSql(const FnnConfig& cfg, const std::vector<AtomDef>& 
     return sql;
 }
 
-}  // namespace
+}
 
 void CreateStatsViews(const FnnConfig& cfg, const std::vector<AtomDef>& atoms,
                        const std::string& item_stats_view, const std::string& user_stats_view) {
@@ -352,8 +344,6 @@ std::vector<TrainingSample> LoadTrainingSet(const FnnConfig& cfg,
     const auto& tc = cfg.interactions.ts_col;
     const auto& it = cfg.interactions.table;
 
-    // Target = per-user PERCENT_RANK ∈ [0,1] (Beel et al. RecSys 2019, «Flatter is Better»):
-    // матчится с probabilistic OR, сохраняет ordinal. Вырожденные юзеры (n=1 или min=max) → 0.5.
     std::string prefix_cte = "WITH _ranked AS (SELECT " + uc + ", " + ic + ", " + rc;
     if (!tc.empty()) prefix_cte += ", " + tc;
     prefix_cte += ", PERCENT_RANK() OVER (PARTITION BY " + uc + " ORDER BY " + rc +
@@ -477,4 +467,4 @@ std::optional<InferenceItem> LoadSingleInferenceItem(const FnnConfig& cfg,
     return it;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

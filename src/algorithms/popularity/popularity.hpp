@@ -21,4 +21,4 @@ class PopularityAlgorithm final : public Algorithm {
                  const std::string& config_json) override;
 };
 
-}  // namespace recdb2::algorithm
+}

@@ -10,4 +10,4 @@ std::int64_t ModelsRepositorySpi::InsertModel(const std::string& name, const std
     return result.SingleRow()[0].As<std::int64_t>();
 }
 
-}  // namespace recdb2::spi
+}

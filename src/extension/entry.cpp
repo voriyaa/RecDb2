@@ -78,7 +78,7 @@ void EmitExplanationRows(PG_FUNCTION_ARGS,
     }
 }
 
-}  // namespace
+}
 
 Datum recdb2_hello(PG_FUNCTION_ARGS) {
     recdb2::core::RecommenderService svc;

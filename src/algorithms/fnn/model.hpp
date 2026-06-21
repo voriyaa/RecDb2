@@ -1,6 +1,3 @@
-// Persistent state of a trained Fuzzy Neural Network.
-// Saved to recdb2_models.learned_state as JSONB.
-
 #pragma once
 
 #include <cstdint>
@@ -17,8 +14,8 @@ enum class AtomKind {
 };
 
 enum class MembershipKind {
-    Binary = 0,   // bool / categorical / binary threshold
-    Gaussian = 1, // exp(-(x-μ)²/2σ²) с обучаемыми μ, σ на нормализованном [0,1]
+    Binary = 0,
+    Gaussian = 1,
 };
 
 struct AtomDef {
@@ -31,8 +28,6 @@ struct AtomDef {
     bool negate = false;
     std::string categorical_value;
     std::string filter_item_column;
-    // Опциональный value-фильтр items: предикат "m.<col> <op> '<value>'" (op ∈ =,<,>,<=,>=).
-    // Пустой op = равенство; пустой value = дефолт (col = true для boolean).
     std::string filter_item_value;
     std::string filter_item_op;
     std::string description;
@@ -58,12 +53,12 @@ struct TrainingMetrics {
 struct LearnedFnnState {
     int n_atoms = 0;
     int n_rules = 0;
-    int n_slots = 0;  // 0 = legacy (Bartl); >0 = NAS-fuzzy (weights = logits)
+    int n_slots = 0;
     std::vector<AtomDef> atoms;
-    std::vector<double> weights;          // NAS logits, size n_rules*n_slots*n_atoms
-    std::vector<double> tnorm_logits;     // size n_rules*3 — обучаемая смесь t-норм (product/softmin/mean)
-    std::vector<double> gaussian_mu;      // size n_atoms — центр для membership Gaussian
-    std::vector<double> gaussian_sigma;   // size n_atoms — ширина
+    std::vector<double> weights;
+    std::vector<double> tnorm_logits;
+    std::vector<double> gaussian_mu;
+    std::vector<double> gaussian_sigma;
     TrainingMetrics metrics;
     std::string trained_at;
 
@@ -80,4 +75,4 @@ const char* AtomKindName(AtomKind kind);
 
 AtomKind ParseAtomKind(const std::string& s);
 
-}  // namespace recdb2::algorithm::fnn
+}

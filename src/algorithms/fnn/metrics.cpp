@@ -20,7 +20,7 @@ std::unordered_map<std::int64_t, PerUser> GroupByUser(
     return by_user;
 }
 
-}  // namespace
+}
 
 TopKMetrics ComputeTopKMetrics(const std::vector<UserItemScore>& predictions, int k) {
     if (k <= 0) return {};
@@ -104,4 +104,4 @@ void FillEvaluationMetrics(const std::vector<UserItemScore>& test_predictions,
     out->map_at_10 = m10.map;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

@@ -1,8 +1,3 @@
-// Дифференцируемая Fuzzy NN с DARTS-style atom selection (baseline Bartl et al. 2025).
-// Каждое правило = K слотов; слот = softmax-смесь атомов. Логиты θ[i,k,j] в одном
-// векторе [n_rules * n_slots * n_atoms]; τ отжигается tau_start → tau_end.
-//   p[i,k,j] = softmax(θ[i,k,:]/τ);  v[i,k] = Σ_j p·a_j;  R[i] = Π_k v[i,k];  y = 1 − Π_i (1 − R[i])
-
 #pragma once
 
 #include <cstddef>
@@ -13,18 +8,17 @@ namespace recdb2::algorithm::fnn {
 double Sigmoid(double x);
 
 struct NasForwardCache {
-    std::vector<double> atom_values;          // [n_atoms] — после Gaussian membership
-    std::vector<double> probs;                // [n_rules * n_slots * n_atoms]
-    std::vector<double> slot_values;          // [n_rules * n_slots]
-    std::vector<double> rule_values;          // [n_rules] — product t-norm по слотам
+    std::vector<double> atom_values;
+    std::vector<double> probs;
+    std::vector<double> slot_values;
+    std::vector<double> rule_values;
     std::vector<double> one_minus_rule;
     double prod_one_minus_rule = 1.0;
     double y = 0.0;
 };
 
-// Маркирует атом который проходит через Gaussian membership (numeric content).
 struct AtomMembership {
-    std::uint8_t kind = 0;  // 0 = Binary (pass-through), 1 = Gaussian
+    std::uint8_t kind = 0;
 };
 
 double ForwardPassNas(const std::vector<double>& logits,
@@ -46,8 +40,6 @@ void BackwardPassNas(const NasForwardCache& cache,
                      std::vector<double>* mu_grad,
                      std::vector<double>* sigma_grad);
 
-// Анти-коллапс: пенализирует ситуацию когда два слота одного правила выбирают
-// один и тот же атом. Loss = λ_div · Σ_{i,k1<k2} <p_{i,k1}, p_{i,k2}>.
 void AddDiversityGradient(const NasForwardCache& cache, int n_rules, int n_slots, int n_atoms,
                            double lambda_div, double tau,
                            std::vector<double>* logit_grad);
@@ -71,4 +63,4 @@ class AdamOptimizer {
     std::vector<double> v_;
 };
 
-}  // namespace recdb2::algorithm::fnn
+}

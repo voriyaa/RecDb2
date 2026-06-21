@@ -28,10 +28,10 @@ struct ItemsConfig {
 
 struct TrainingConfig {
     int n_rules = 4;
-    int n_slots = 4;                // K атомов на правило (NAS-style slot selection)
-    double tau_start = 1.5;         // стартовая температура Gumbel-softmax
-    double tau_end = 0.05;          // финальная (для discretization → argmax)
-    double lambda_diversity = 0.3;  // штраф за выбор одинаковых атомов в разных слотах
+    int n_slots = 4;
+    double tau_start = 1.5;
+    double tau_end = 0.05;
+    double lambda_diversity = 0.3;
     int epochs = 50;
     double learning_rate = 0.05;
     int batch_size = 1024;
@@ -45,7 +45,7 @@ struct TrainingConfig {
     bool warm_start = true;
     double warm_start_lr_scale = 0.3;
     double warm_start_epoch_scale = 0.3;
-    int parallel_workers = 1;  // >1 → параллельное обучение (Local SGD на bgworker'ах)
+    int parallel_workers = 1;
 };
 
 struct AtomConfig {
@@ -57,9 +57,9 @@ struct AtomConfig {
     bool negate = false;
     std::string categorical_value;
     std::string filter_item_column;
-    std::string filter_item_value;     // см. AtomDef::filter_item_value
+    std::string filter_item_value;
     std::string filter_item_op;
-    bool gaussian = false;  // numeric content атомы используют learnable Gaussian membership
+    bool gaussian = false;
 };
 
 struct FnnConfig {
@@ -72,4 +72,4 @@ struct FnnConfig {
 
 FnnConfig ParseFnnConfig(const std::string& config_json);
 
-}  // namespace recdb2::algorithm::fnn
+}

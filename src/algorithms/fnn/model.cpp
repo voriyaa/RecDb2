@@ -110,7 +110,7 @@ std::vector<double> ParseDoubleArray(const std::string& json_array_text) {
     return out;
 }
 
-}  // namespace
+}
 
 std::string SerializeFnnState(const LearnedFnnState& state) {
     std::string out = "{\"n_rules\":" + std::to_string(state.n_rules);
@@ -151,7 +151,6 @@ std::string SerializeFnnState(const LearnedFnnState& state) {
         out += FormatNum(state.gaussian_sigma[i]);
     }
     out += "]";
-
 
     out += ",\"metrics\":{";
     out += "\"n_train\":" + std::to_string(state.metrics.n_train);
@@ -243,7 +242,6 @@ LearnedFnnState DeserializeFnnState(const std::string& json) {
         state.gaussian_sigma = ParseDoubleArray(sig[0][0].As<std::string>());
     }
 
-
     static constexpr const char* kMetricsQuery =
         "SELECT (m->>'n_train')::int, (m->>'n_test')::int, (m->>'epochs_trained')::int, "
         "       (m->>'final_train_loss')::double precision, "
@@ -282,4 +280,4 @@ LearnedFnnState DeserializeFnnState(const std::string& json) {
     return state;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}

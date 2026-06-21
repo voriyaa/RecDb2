@@ -26,7 +26,7 @@ double LrSchedule(int epoch, int total_epochs) {
 double TauSchedule(int epoch, int total_epochs, double tau_start, double tau_end) {
     if (total_epochs <= 1) return tau_end;
     const double t = static_cast<double>(epoch) / static_cast<double>(total_epochs - 1);
-    return tau_start * std::pow(tau_end / tau_start, t);  // экспоненциальный спад
+    return tau_start * std::pow(tau_end / tau_start, t);
 }
 
 double EvalMseNas(const std::vector<TrainingSample>& samples, const std::vector<double>& logits,
@@ -62,4 +62,4 @@ std::vector<UserItemScore> ScoreSamplesNas(const std::vector<TrainingSample>& sa
     return out;
 }
 
-}  // namespace recdb2::algorithm::fnn
+}
