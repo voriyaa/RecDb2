@@ -1,6 +1,7 @@
 # build
 *.o
 *.so
+*.dylib
 *.a
 *.d
 *.gcda
@@ -12,6 +13,8 @@ tmp/
 # clang / ide
 compile_commands.json
 .cache/
+.clangd
+clangd/
 
 # editor
 .vscode/
@@ -19,3 +22,11 @@ compile_commands.json
 
 # os
 .DS_Store
+
+# not published (code-only repo): datasets, thesis, internal docs/scripts
+datasets/
+docs/
+scripts/
+thesis/
+CLAUDE.md
+.claude/

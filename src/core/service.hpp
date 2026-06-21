@@ -18,6 +18,13 @@ class RecommenderService final {
     std::vector<algorithm::Prediction> Recommend(const std::string& name, std::int64_t user_id,
                                                  int top_n) const;
 
+    std::vector<algorithm::ExplanationItem> Explain(const std::string& name, std::int64_t user_id,
+                                                    std::int64_t item_id) const;
+
+    std::vector<algorithm::ExplanationItem> Introspect(const std::string& name) const;
+
+    double Score(const std::string& name, std::int64_t user_id, std::int64_t item_id) const;
+
     std::string Retrain(const std::string& name) const;
 
     std::string Drop(const std::string& name) const;

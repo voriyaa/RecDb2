@@ -9,7 +9,7 @@ extern "C" {
 #include "utils/elog.h"
 }
 
-namespace recdb2::pg_spi {
+namespace recdb2::spi {
 
 Field::Field(std::optional<std::string>&& value) : value_(std::move(value)) {}
 
@@ -123,4 +123,13 @@ double Field::As<double>() const {
     return val;
 }
 
-}  // namespace recdb2::pg_spi
+template <>
+bool Field::As<bool>() const {
+    const auto sv = AsStringView();
+    if (sv == "t" || sv == "true" || sv == "T" || sv == "TRUE" || sv == "1") return true;
+    if (sv == "f" || sv == "false" || sv == "F" || sv == "FALSE" || sv == "0") return false;
+    ereport(ERROR, (errmsg("recdb2: failed to parse bool")));
+    __builtin_unreachable();
+}
+
+}  // namespace recdb2::spi

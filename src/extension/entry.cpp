@@ -4,7 +4,9 @@ extern "C" {
 #include "fmgr.h"
 #include "funcapi.h"
 #include "utils/builtins.h"
+#include "utils/jsonb.h"
 #include "utils/tuplestore.h"
+#include "miscadmin.h"
 
 PG_MODULE_MAGIC;
 
@@ -23,15 +25,60 @@ Datum recdb2_train(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(recdb2_recommend);
 Datum recdb2_recommend(PG_FUNCTION_ARGS);
 
+PG_FUNCTION_INFO_V1(recdb2_explain);
+Datum recdb2_explain(PG_FUNCTION_ARGS);
+
+PG_FUNCTION_INFO_V1(recdb2_introspect);
+Datum recdb2_introspect(PG_FUNCTION_ARGS);
+
 PG_FUNCTION_INFO_V1(recdb2_retrain);
 Datum recdb2_retrain(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(recdb2_drop_recommender);
 Datum recdb2_drop_recommender(PG_FUNCTION_ARGS);
+
+PG_FUNCTION_INFO_V1(recdb2_score);
+Datum recdb2_score(PG_FUNCTION_ARGS);
 }
 
 #include "../core/service.hpp"
-#include "../pg_spi/spi_session.hpp"
+#include "../spi/spi_session.hpp"
+
+namespace {
+
+void EmitExplanationRows(PG_FUNCTION_ARGS,
+                        const std::vector<recdb2::algorithm::ExplanationItem>& rows) {
+    ReturnSetInfo* rsinfo = (ReturnSetInfo*)fcinfo->resultinfo;
+
+    TupleDesc tupdesc;
+    if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE) {
+        ereport(ERROR, (errmsg("recdb2: function returning record called in context that cannot "
+                               "accept type record")));
+    }
+    tupdesc = BlessTupleDesc(tupdesc);
+
+    MemoryContext old_ctx = MemoryContextSwitchTo(rsinfo->econtext->ecxt_per_query_memory);
+    Tuplestorestate* tupstore =
+        tuplestore_begin_heap(rsinfo->allowedModes & SFRM_Materialize_Random, false, work_mem);
+    MemoryContextSwitchTo(old_ctx);
+
+    rsinfo->returnMode = SFRM_Materialize;
+    rsinfo->setResult = tupstore;
+    rsinfo->setDesc = tupdesc;
+
+    for (const auto& item : rows) {
+        Datum values[4];
+        bool nulls[4] = {false, false, false, false};
+        values[0] = CStringGetTextDatum(item.kind.c_str());
+        values[1] = CStringGetTextDatum(item.label.c_str());
+        values[2] = Float8GetDatum(item.contribution);
+        values[3] = DirectFunctionCall1(jsonb_in, CStringGetDatum(item.details_json.c_str()));
+        HeapTuple tuple = heap_form_tuple(tupdesc, values, nulls);
+        tuplestore_puttuple(tupstore, tuple);
+    }
+}
+
+}  // namespace
 
 Datum recdb2_hello(PG_FUNCTION_ARGS) {
     recdb2::core::RecommenderService svc;
@@ -40,7 +87,7 @@ Datum recdb2_hello(PG_FUNCTION_ARGS) {
 }
 
 Datum recdb2_spi_ping(PG_FUNCTION_ARGS) {
-    recdb2::pg_spi::SpiSession::RunVoid([]() {});
+    recdb2::spi::SpiSession::RunVoid([]() {});
     PG_RETURN_TEXT_P(cstring_to_text("recdb2: SPI ok"));
 }
 
@@ -53,7 +100,7 @@ Datum recdb2_create_recommender(PG_FUNCTION_ARGS) {
     char* algo_c = text_to_cstring(algo_text);
     char* cfg_c = text_to_cstring(cfg_text);
 
-    std::int64_t id = recdb2::pg_spi::SpiSession::Run([&]() -> std::int64_t {
+    std::int64_t id = recdb2::spi::SpiSession::Run([&]() -> std::int64_t {
         recdb2::core::RecommenderService svc;
         return svc.CreateRecommender(name_c, algo_c, cfg_c);
     });
@@ -65,7 +112,7 @@ Datum recdb2_train(PG_FUNCTION_ARGS) {
     text* name_text = PG_GETARG_TEXT_PP(0);
     char* name_c = text_to_cstring(name_text);
 
-    std::string result = recdb2::pg_spi::SpiSession::Run([&]() -> std::string {
+    std::string result = recdb2::spi::SpiSession::Run([&]() -> std::string {
         recdb2::core::RecommenderService svc;
         return svc.Train(name_c);
     });
@@ -97,7 +144,7 @@ Datum recdb2_recommend(PG_FUNCTION_ARGS) {
     int64 user_id = PG_GETARG_INT64(1);
     int32 top_n = PG_GETARG_INT32(2);
 
-    auto rows = recdb2::pg_spi::SpiSession::Run([&]() {
+    auto rows = recdb2::spi::SpiSession::Run([&]() {
         recdb2::core::RecommenderService svc;
         return svc.Recommend(name_c, user_id, top_n);
     });
@@ -114,11 +161,39 @@ Datum recdb2_recommend(PG_FUNCTION_ARGS) {
     return (Datum)0;
 }
 
+Datum recdb2_explain(PG_FUNCTION_ARGS) {
+    text* name_text = PG_GETARG_TEXT_PP(0);
+    char* name_c = text_to_cstring(name_text);
+    int64 user_id = PG_GETARG_INT64(1);
+    int64 item_id = PG_GETARG_INT64(2);
+
+    auto rows = recdb2::spi::SpiSession::Run([&]() {
+        recdb2::core::RecommenderService svc;
+        return svc.Explain(name_c, user_id, item_id);
+    });
+
+    EmitExplanationRows(fcinfo, rows);
+    return (Datum)0;
+}
+
+Datum recdb2_introspect(PG_FUNCTION_ARGS) {
+    text* name_text = PG_GETARG_TEXT_PP(0);
+    char* name_c = text_to_cstring(name_text);
+
+    auto rows = recdb2::spi::SpiSession::Run([&]() {
+        recdb2::core::RecommenderService svc;
+        return svc.Introspect(name_c);
+    });
+
+    EmitExplanationRows(fcinfo, rows);
+    return (Datum)0;
+}
+
 Datum recdb2_retrain(PG_FUNCTION_ARGS) {
     text* name_text = PG_GETARG_TEXT_PP(0);
     char* name_c = text_to_cstring(name_text);
 
-    std::string result = recdb2::pg_spi::SpiSession::Run([&]() -> std::string {
+    std::string result = recdb2::spi::SpiSession::Run([&]() -> std::string {
         recdb2::core::RecommenderService svc;
         return svc.Retrain(name_c);
     });
@@ -130,10 +205,24 @@ Datum recdb2_drop_recommender(PG_FUNCTION_ARGS) {
     text* name_text = PG_GETARG_TEXT_PP(0);
     char* name_c = text_to_cstring(name_text);
 
-    std::string result = recdb2::pg_spi::SpiSession::Run([&]() -> std::string {
+    std::string result = recdb2::spi::SpiSession::Run([&]() -> std::string {
         recdb2::core::RecommenderService svc;
         return svc.Drop(name_c);
     });
 
     PG_RETURN_TEXT_P(cstring_to_text(result.c_str()));
+}
+
+Datum recdb2_score(PG_FUNCTION_ARGS) {
+    text* name_text = PG_GETARG_TEXT_PP(0);
+    char* name_c = text_to_cstring(name_text);
+    int64 user_id = PG_GETARG_INT64(1);
+    int64 item_id = PG_GETARG_INT64(2);
+
+    double score = recdb2::spi::SpiSession::Run([&]() -> double {
+        recdb2::core::RecommenderService svc;
+        return svc.Score(name_c, user_id, item_id);
+    });
+
+    PG_RETURN_FLOAT8(score);
 }

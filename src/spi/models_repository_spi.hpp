@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../storages/models_repository.hpp"
+#include "../storage/models_repository.hpp"
 
-namespace recdb2::pg_spi {
+namespace recdb2::spi {
 
 class ModelsRepositorySpi final : public recdb2::storages::ModelsRepository {
    public:
@@ -10,4 +10,4 @@ class ModelsRepositorySpi final : public recdb2::storages::ModelsRepository {
                              const std::string& config_json_text) override;
 };
 
-}  // namespace recdb2::pg_spi
+}  // namespace recdb2::spi

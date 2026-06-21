@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace recdb2::pg_spi {
+namespace recdb2::spi {
 
 class Field final {
    public:
@@ -52,4 +52,4 @@ class ResultSet final {
     std::vector<Row> rows_;
 };
 
-}  // namespace recdb2::pg_spi
+}  // namespace recdb2::spi

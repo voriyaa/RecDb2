@@ -1,4 +1,4 @@
 comment = 'recdb2 extension'
-default_version = '0.1.4'
+default_version = '1.0.0'
 relocatable = true
 module_pathname = '$libdir/recdb2'

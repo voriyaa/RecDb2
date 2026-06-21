@@ -1,8 +1,8 @@
 #include "service.hpp"
-#include "../pg_spi/models_repository_spi.hpp"
+#include "../spi/models_repository_spi.hpp"
 #include "src/algorithms/algorithm_factory.hpp"
-#include "src/pg_spi/execute.hpp"
-#include "src/sql/queries.hpp"
+#include "src/spi/execute.hpp"
+#include "src/core/queries.hpp"
 #include "src/utils/json_utils.hpp"
 #include <string>
 
@@ -16,10 +16,11 @@ struct ModelInfo {
     std::string algorithm;
     std::string state;
     std::string config_json;
+    std::string learned_state_json;
 };
 
 ModelInfo LoadModel(const std::string& model_name) {
-    auto result_set = pg_spi::Execute(sql::kSelectModelByName, model_name);
+    auto result_set = spi::Execute(sql::kSelectModelByName, model_name);
     if (result_set.IsEmpty()) {
         ereport(ERROR, (errmsg("recdb2: model '%s' not found", model_name.c_str())));
     }
@@ -28,12 +29,13 @@ ModelInfo LoadModel(const std::string& model_name) {
                      .name = row[1].As<std::string>(),
                      .algorithm = row[2].As<std::string>(),
                      .state = row[3].As<std::string>(),
-                     .config_json = row[4].As<std::string>()};
+                     .config_json = row[4].As<std::string>(),
+                     .learned_state_json = row[5].As<std::string>()};
 }
 
 void SetModelState(std::int64_t id, const std::string& state,
                    const std::optional<std::string>& error = std::nullopt) {
-    recdb2::pg_spi::Execute(recdb2::sql::kUpdateModelState, id, state, error);
+    recdb2::spi::Execute(recdb2::sql::kUpdateModelState, id, state, error);
 }
 
 }  // namespace
@@ -55,7 +57,7 @@ std::int64_t RecommenderService::CreateRecommender(const std::string& name,
         }
     }
 
-    pg_spi::ModelsRepositorySpi repo;
+    spi::ModelsRepositorySpi repo;
     return repo.InsertModel(name, algorithm, config_json_text);
 }
 
@@ -91,6 +93,38 @@ std::vector<algorithm::Prediction> RecommenderService::Recommend(const std::stri
     return algorithm_ptr->Recommend(model.id, user_id, top_n, model.config_json);
 }
 
+std::vector<algorithm::ExplanationItem> RecommenderService::Explain(const std::string& name,
+                                                                    std::int64_t user_id,
+                                                                    std::int64_t item_id) const {
+    auto model = LoadModel(name);
+
+    if (model.state != "ready") {
+        ereport(ERROR, (errmsg("recdb2: model '%s' is not ready (state='%s')", name.c_str(),
+                               model.state.c_str())));
+    }
+
+    auto algorithm_ptr = algorithm::CreateAlgorithm(model.algorithm);
+    return algorithm_ptr->Explain(model.id, user_id, item_id, model.config_json);
+}
+
+std::vector<algorithm::ExplanationItem> RecommenderService::Introspect(
+    const std::string& name) const {
+    auto model = LoadModel(name);
+    auto algorithm_ptr = algorithm::CreateAlgorithm(model.algorithm);
+    return algorithm_ptr->Introspect(model.id, model.config_json, model.learned_state_json);
+}
+
+double RecommenderService::Score(const std::string& name, std::int64_t user_id,
+                                   std::int64_t item_id) const {
+    auto model = LoadModel(name);
+    if (model.state != "ready") {
+        ereport(ERROR, (errmsg("recdb2: model '%s' is not ready (state='%s')", name.c_str(),
+                               model.state.c_str())));
+    }
+    auto algorithm_ptr = algorithm::CreateAlgorithm(model.algorithm);
+    return algorithm_ptr->Score(model.id, user_id, item_id, model.config_json);
+}
+
 std::string RecommenderService::Retrain(const std::string& name) const {
     auto model = LoadModel(name);
 
@@ -110,7 +144,7 @@ std::string RecommenderService::Retrain(const std::string& name) const {
 
 std::string RecommenderService::Drop(const std::string& name) const {
     auto model = LoadModel(name);
-    pg_spi::Execute(recdb2::sql::kDeleteModel, name);
+    spi::Execute(recdb2::sql::kDeleteModel, name);
     return "recdb2: model '" + name + "' dropped";
 }
 

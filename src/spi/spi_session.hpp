@@ -6,7 +6,7 @@ extern "C" {
 #include "utils/elog.h"
 }
 
-namespace recdb2::pg_spi {
+namespace recdb2::spi {
 
 namespace {
 
@@ -71,4 +71,4 @@ class SpiSession final {
     }
 };
 
-}  // namespace recdb2::pg_spi
+}  // namespace recdb2::spi

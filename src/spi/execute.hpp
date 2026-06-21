@@ -12,7 +12,7 @@ extern "C" {
 
 #include "result_set.hpp"
 
-namespace recdb2::pg_spi {
+namespace recdb2::spi {
 
 namespace {
 
@@ -150,4 +150,4 @@ ResultSet Execute(const char* query, const Args&... args) {
     return CopyResultToOwned();
 }
 
-}  // namespace recdb2::pg_spi
+}  // namespace recdb2::spi

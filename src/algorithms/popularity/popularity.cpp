@@ -1,7 +1,7 @@
 #include "popularity.hpp"
 #include "src/algorithms/algorithm.hpp"
-#include "src/pg_spi/execute.hpp"
-#include "src/sql/queries.hpp"
+#include "src/spi/execute.hpp"
+#include "src/core/queries.hpp"
 #include "src/utils/json_utils.hpp"
 #include "src/utils/query_builder.hpp"
 #include <cstdint>
@@ -49,10 +49,10 @@ void PopularityAlgorithm::Train(std::int64_t model_id, const std::string& config
     const auto item_col = utils::JsonGet(config_json, "item_col");
     const auto rating_col = utils::JsonGet(config_json, "rating_col");
 
-    pg_spi::Execute(sql::kDeletePredictions, model_id);
+    spi::Execute(sql::kDeletePredictions, model_id);
 
     const auto query = BuildQueryForTrain(ratings_table, item_col, rating_col);
-    pg_spi::Execute(query.c_str(), model_id);
+    spi::Execute(query.c_str(), model_id);
 }
 
 std::vector<Prediction> PopularityAlgorithm::Recommend(std::int64_t model_id, std::int64_t user_id,
@@ -64,7 +64,7 @@ std::vector<Prediction> PopularityAlgorithm::Recommend(std::int64_t model_id, st
     const auto query = BuildRecommendQuery(ratings_table, user_col, item_col);
 
     auto result_set =
-        pg_spi::Execute(query.c_str(), model_id, user_id, static_cast<std::int64_t>(top_n));
+        spi::Execute(query.c_str(), model_id, user_id, static_cast<std::int64_t>(top_n));
 
     std::vector<Prediction> predictions;
     predictions.reserve(result_set.Size());
@@ -75,6 +75,50 @@ std::vector<Prediction> PopularityAlgorithm::Recommend(std::int64_t model_id, st
         });
     }
     return predictions;
+}
+
+double PopularityAlgorithm::Score(std::int64_t model_id, std::int64_t, std::int64_t item_id,
+                                    const std::string&) {
+    static constexpr const char* kQuery =
+        "SELECT score FROM recdb2_predictions WHERE model_id = $1 AND item_id = $2 ";
+    auto rs = spi::Execute(kQuery, model_id, item_id);
+    if (rs.IsEmpty() || rs[0][0].IsNull()) return 0.0;
+    return rs[0][0].As<double>();
+}
+
+std::vector<ExplanationItem> PopularityAlgorithm::Explain(std::int64_t model_id, std::int64_t,
+                                                          std::int64_t item_id,
+                                                          const std::string&) {
+    auto rs = spi::Execute(sql::kSelectPredictionRank, model_id, item_id);
+    if (rs.IsEmpty()) {
+        ereport(ERROR, (errmsg("recdb2: item_id=%lld has no prediction for model_id=%lld",
+                               static_cast<long long>(item_id),
+                               static_cast<long long>(model_id))));
+    }
+
+    const auto& row = rs.SingleRow();
+    const double score = row[0].As<double>();
+    const std::int64_t rank = row[1].As<std::int64_t>();
+    const std::int64_t total = row[2].As<std::int64_t>();
+
+    const double normalized_rank = total > 0 ? 1.0 - static_cast<double>(rank - 1) / total : 0.0;
+
+    std::vector<ExplanationItem> out;
+    out.reserve(2);
+    out.push_back(ExplanationItem{
+        .kind = "popularity_score",
+        .label = "avg_rating",
+        .contribution = score,
+        .details_json = "{}",
+    });
+    out.push_back(ExplanationItem{
+        .kind = "rank",
+        .label = std::to_string(rank) + " of " + std::to_string(total),
+        .contribution = normalized_rank,
+        .details_json = "{\"rank\": " + std::to_string(rank) + ", \"total\": " +
+                        std::to_string(total) + "}",
+    });
+    return out;
 }
 
 }  // namespace recdb2::algorithm
